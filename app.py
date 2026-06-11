@@ -16,6 +16,96 @@ import datetime
 
 load_dotenv()
 
+
+# ── First-run setup: generate dataset + train model if missing ─────────────────
+def _ensure_model():
+    dataset_path = "electricity_bill_dataset.csv"
+    model_path   = "electricity_model.pkl"
+    features_path = "features.pkl"
+
+    need_data  = not os.path.exists(dataset_path)
+    need_model = not os.path.exists(model_path) or not os.path.exists(features_path)
+
+    if not need_data and not need_model:
+        return
+
+    # Show splash window
+    splash = tk.Tk()
+    splash.title("Setting up...")
+    splash.geometry("420x140")
+    splash.configure(bg="#0f172a")
+    splash.resizable(False, False)
+    splash.eval("tk::PlaceWindow . center")
+    tk.Label(splash, text="⚡  First-Time Setup", font=("Helvetica", 14, "bold"),
+             bg="#0f172a", fg="#22c55e").pack(pady=(22, 4))
+    status_var = tk.StringVar(value="Initializing…")
+    tk.Label(splash, textvariable=status_var, font=("Arial", 10),
+             bg="#0f172a", fg="#94a3b8").pack()
+    progress = ttk.Progressbar(splash, mode="indeterminate", length=340)
+    progress.pack(pady=14)
+    progress.start(12)
+    splash.update()
+
+    # ── Generate dataset if missing ──────────────────────────────────────────
+    if need_data:
+        status_var.set("Generating dataset (50 000 records)…")
+        splash.update()
+
+        from sklearn.ensemble import RandomForestRegressor
+        from sklearn.model_selection import train_test_split
+        from sklearn.metrics import r2_score
+
+        rng = np.random.default_rng(42)
+        n = 50000
+        fan     = rng.integers(0, 11, n)
+        fridge  = rng.integers(0, 4,  n)
+        ac      = rng.integers(0, 4,  n)
+        tv      = rng.integers(0, 5,  n)
+        monitor = rng.integers(0, 4,  n)
+        pump    = rng.integers(0, 3,  n)
+        month   = rng.integers(1, 13, n)
+        daily_h = np.round(rng.uniform(4, 18, n), 1)
+        tariff  = np.round(rng.uniform(5, 25, n), 1)
+
+        watts_kw    = (fan*75 + fridge*150 + ac*1500 + tv*100 + monitor*50 + pump*750) / 1000.0
+        monthly_kwh = watts_kw * daily_h * 30
+        seasonal    = np.where((month >= 5) & (month <= 9), 1.15, 1.0)
+        monthly_kwh = monthly_kwh * seasonal * rng.normal(1.0, 0.05, n)
+        monthly_kwh = np.maximum(monthly_kwh, 0)
+        bill        = np.round(monthly_kwh * tariff, 2)
+
+        _df = pd.DataFrame({
+            "Fan": fan, "Refrigerator": fridge, "AirConditioner": ac,
+            "Television": tv, "Monitor": monitor, "MotorPump": pump,
+            "Month": month, "DailyHours": daily_h, "TariffRate": tariff,
+            "ElectricityBill": bill,
+        })
+        _df = _df[_df["ElectricityBill"] > 0].reset_index(drop=True)
+        _df.to_csv(dataset_path, index=False)
+
+    # ── Train model if missing ───────────────────────────────────────────────
+    if need_model:
+        status_var.set("Training Random Forest model… (this takes ~30 s)")
+        splash.update()
+
+        from sklearn.ensemble import RandomForestRegressor
+        from sklearn.model_selection import train_test_split
+
+        _df = pd.read_csv(dataset_path)
+        X   = _df.drop("ElectricityBill", axis=1)
+        y   = _df["ElectricityBill"]
+        X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.2, random_state=42)
+        _model = RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1)
+        _model.fit(X_tr, y_tr)
+        joblib.dump(_model, model_path)
+        joblib.dump(X.columns.tolist(), features_path)
+
+    progress.stop()
+    splash.destroy()
+
+
+_ensure_model()
+
 # ── Model & data ───────────────────────────────────────────────────────────────
 model    = joblib.load("electricity_model.pkl")
 features = joblib.load("features.pkl")          # plain list from X.columns.tolist()
