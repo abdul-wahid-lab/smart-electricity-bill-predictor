@@ -764,7 +764,16 @@ def _send():
 
     api_key = os.getenv("RAPIDAPI_KEY")
     if not api_key:
-        _append("ai", "RapidAPI key not found. Add RAPIDAPI_KEY=your_key to the .env file.")
+        _append("ai", (
+            "⚠️  No API key found.\n\n"
+            "To enable the AI Assistant:\n"
+            "  1. Sign up free at https://rapidapi.com\n"
+            "  2. Search for 'Free ChatGPT API' and subscribe\n"
+            "  3. Create a file named  .env  in the project folder\n"
+            "  4. Add this line inside it:\n\n"
+            "         RAPIDAPI_KEY=your_key_here\n\n"
+            "  5. Restart the app — AI will work automatically."
+        ))
         send_btn.config(state="normal")
         status_lbl.config(text="")
         return
