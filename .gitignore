@@ -1,0 +1,22 @@
+# Model binary (too large for GitHub — regenerate with retrain.py)
+electricity_model.pkl
+
+# Environment variables — NEVER commit secrets
+.env
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Virtual environments
+venv/
+env/
+.venv/
